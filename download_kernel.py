@@ -2,16 +2,25 @@
 def main():
     parser = argparse.ArgumentParser(description="Download kernel from mainline PPA.")
     parser.add_argument("--version", help="Kernel version")
+    parser.add_argument("--list_versions", help="List available versions", action='store_true')
     parser.add_argument("--type", help="Kernel type", default="generic", choices=["generic", "lowlatency", "lpae","snapdragon"])
     parser.add_argument("--cpu", help="CPU type", default="amd64", choices=["amd64", "i386","armhf","arm64","ppc64el","s390x"])
 
     args = parser.parse_args()
 
     version = args.version
+    list_versions = args.list_versions
     type = args.type
     cpu = args.cpu
-    
-    if type == "lowlatency" and cpu != "amd64" or "i386":
+
+    if list_versions:
+        available_versions()
+        exit(1)
+
+    if version == None:
+        version = get_latest_stable_version()
+
+    if type == "lowlatency" and cpu in ["armhf","arm64","ppc64el","s390x"]:
         print("There is no lowlatency kernel for cpu architecture \"%s\"" % (cpu))
         exit(1)
     elif type == "lpae" and cpu != "armhf":
@@ -21,17 +30,14 @@ def main():
         print("There is no snapdragon kernel for cpu architecture \"%s\"" % (cpu))
         exit(1)
 
-    if version == None:
-        version = get_latest_stable_version()
-
     urllist = get_urls(version)
 
     checked_set = check_urls(urllist, type, cpu)
 
     if len(checked_set) != 0 and len(checked_set) > 2:
-        download_kernel(checked_set)
+       download_kernel(checked_set)
     else:
-        print("Something went wrong. Please check Mainline-PPA if all deb-files are available for download!")
+       print("Something went wrong. Please check Mainline-PPA if all deb-files are available for download!")
 
 
 def check_urls(urllist, type, cpu):
@@ -47,6 +53,26 @@ def check_urls(urllist, type, cpu):
             checked_set.add(url)
 
     return checked_set
+
+
+def available_versions():
+    print("Available kernel versions on \"www.kernel.org\":\n")
+
+    http = urllib3.PoolManager()
+    r = http.request("GET", "https://www.kernel.org")
+    root = parse(r.data)
+    version_path = root.xpath("/html/body/aside/article/table[3]/tbody/tr")
+
+    for element in version_path:
+        if len(element[1][0]):
+            eol_status = "EOL"
+        else:
+            eol_status = ""
+
+        type = element[0].text
+        version = element[1][0].text
+
+        print(type, version , eol_status)
 
 
 def get_latest_stable_version():
