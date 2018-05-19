@@ -4,7 +4,7 @@ def main():
     parser.add_argument("--version", help="Kernel version")
     parser.add_argument("--list_versions", help="List available versions", action='store_true')
     parser.add_argument("--type", help="Kernel type", default="generic", choices=["generic", "lowlatency", "lpae","snapdragon"])
-    parser.add_argument("--cpu", help="CPU type", default="amd64", choices=["amd64", "i386","armhf","arm64","ppc64el","s390x"])
+    parser.add_argument("--cpu", help="CPU type", choices=["amd64", "i386","armhf","arm64","ppc64el","s390x"])
 
     args = parser.parse_args()
 
@@ -12,6 +12,11 @@ def main():
     list_versions = args.list_versions
     type = args.type
     cpu = args.cpu
+
+
+    if cpu == None:
+        args = ["dpkg","--print-architecture"]
+        cpu = sp.check_output(args).decode("utf-8").strip()
 
     if list_versions:
         available_versions()
@@ -32,27 +37,27 @@ def main():
 
     urllist = get_urls(version)
 
-    checked_set = check_urls(urllist, type, cpu)
+    filtered_set = filter_urls(urllist, type, cpu)
 
-    if len(checked_set) != 0 and len(checked_set) > 2:
-       download_kernel(checked_set)
+    if len(filtered_set) != 0 and len(filtered_set) > 2:
+       download_kernel(filtered_set)
     else:
        print("Something went wrong. Please check Mainline-PPA if all deb-files are available for download!")
 
 
-def check_urls(urllist, type, cpu):
-    checked_set = set()
+def filter_urls(urllist, type, cpu):
+    pattern = re.compile(".*"+type+".*"+cpu+".deb")
+
+    filtered_set = set()
 
     for url in urllist:
-        filename = url.split("/")[-1]
+        if "_all.deb" in url:
+            filtered_set.add(url)
 
-        if "_all.deb" in filename:
-            checked_set.add(url)
+        if pattern.match(url):
+            filtered_set.add(url)
 
-        if type in filename and cpu in filename:
-            checked_set.add(url)
-
-    return checked_set
+    return filtered_set
 
 
 def available_versions():
@@ -60,14 +65,17 @@ def available_versions():
 
     http = urllib3.PoolManager()
     r = http.request("GET", "https://www.kernel.org")
-    root = parse(r.data)
-    version_path = root.xpath("/html/body/aside/article/table[3]/tbody/tr")
+    html_string = r.data.decode("UTF-8")
+    parser = etree.HTMLParser()
+    root = etree.parse(StringIO(html_string), parser)
+
+    version_path = root.xpath("/html/body/aside/article/table[3]//tr")
 
     for element in version_path:
         if len(element[1][0]):
-            eol_status = "EOL"
+             eol_status = "EOL"
         else:
-            eol_status = ""
+             eol_status = ""
 
         type = element[0].text
         version = element[1][0].text
@@ -78,9 +86,12 @@ def available_versions():
 def get_latest_stable_version():
     http = urllib3.PoolManager()
     r = http.request("GET", "https://www.kernel.org")
-    root = parse(r.data)
-    version_path = root.xpath("/html/body/aside/article/table[2]/tbody/tr[2]/td[2]/a")
-    return version_path[0].text
+
+    html_string = r.data.decode("UTF-8")
+    parser = etree.HTMLParser()
+    root = etree.parse(StringIO(html_string), parser)
+
+    return root.find('.//*[@id="latest_link"]')[0].text
 
 
 def get_urls(version):
@@ -90,44 +101,32 @@ def get_urls(version):
 
     http = urllib3.PoolManager()
     r = http.request("GET", mainline_url)
-    root = parse(r.data)
+    html_string = r.data.decode("UTF-8")
+    parser = etree.HTMLParser()
+    root = etree.parse(StringIO(html_string), parser)
 
-    if root.xpath("/html/body/h1")[0].text != "Not Found":
-
-        pattern = re.compile("^linux.*.deb")
-        path = "/html/body/code/a"
-        filenames = root.xpath(path)
-
-        for filename in filenames:
-            if pattern.match(filename.text):
-                urllist.append(mainline_url + "/" + filename.text)
+    if len(root.findall(".//body//a")) != 0:
+        for child in root.findall(".//body//a"):
+            filename = child.text
+            pattern = re.compile("^linux.*.deb")
+            if pattern.match(filename):
+                urllist.append(mainline_url + "/" + filename)
 
     return urllist
 
 
 def download_kernel(urlset):
     for url in urlset:
-        print("Downloading file \"%s\"" % url)
-        wget.download(url)
-        print()
+        args = ["wget","-c","-q","--show-progress","--progress=bar:noscroll",url]
+        sp.call(args)
 
 
 if __name__ == "__main__":
-    try:
-        import urllib3
-    except ImportError:
-        raise ImportError("This script needs the python module \"urllib3\"")
-
-    try:
-        from html5_parser import parse
-    except ImportError:
-        raise ImportError("This script needs the python module \"html5_parser\"")
-
-    try:
-        import wget
-    except ImportError:
-        raise ImportError("This script needs the python module \"wget\"")
+    import urllib3
+    from lxml import etree
+    from io import StringIO
 
     import argparse, re
+    import subprocess as sp
 
     main()

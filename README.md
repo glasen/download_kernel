@@ -1,10 +1,12 @@
 # Description
-Small python script checks www.kernel.org for the latest stable version and downloads needed Debian packages from Ubuntu mainline kernel PPA.
+Small python script checks www.kernel.org for the latest stable version and downloads needed Debian packages from Ubuntu
+mainline kernel PPA. The script downloads the suitable kernel for the system. If another kernel is needed the options
+"--cpu" and "--type" can be used.
 
 # Requirements
-The script needs three additional python modules which are normally not in a typical Ubuntu or Debian installation. The modules can be installed with the following command:
+The script needs two additional python modules. The modules can be installed with the following command:
 
-```sudo apt install python3-wget python3-html5-parser python3-urllib3```
+```sudo apt install python3-lxml python3-urllib3```
 
 # Usage
 
