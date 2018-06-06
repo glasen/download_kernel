@@ -61,11 +61,10 @@ def filter_urls(urllist, type, cpu):
 
 
 def available_versions():
-    print("Available kernel versions on \"www.kernel.org\":\n")
+    print("Available kernel versions on \"kernel.ubuntu.com\":\n")
 
-    http = urllib3.PoolManager()
-    r = http.request("GET", "https://www.kernel.org")
-    html_string = r.data.decode("UTF-8")
+    r = requests.get("https://www.kernel.org")
+    html_string = r.content.decode("UTF-8")
     parser = etree.HTMLParser()
     root = etree.parse(StringIO(html_string), parser)
 
@@ -79,15 +78,23 @@ def available_versions():
 
         type = element[0].text
         version = element[1][0].text
+        if check_availability(version):
+            print(type, version , eol_status)
 
-        print(type, version , eol_status)
+def check_availability(version):
+    mainline_url = "http://kernel.ubuntu.com/~kernel-ppa/mainline/v"+version
+    r = requests.get(mainline_url)
+
+    if r.status_code == 200:
+        return True
+    else:
+        return False
 
 
 def get_latest_stable_version():
-    http = urllib3.PoolManager()
-    r = http.request("GET", "https://www.kernel.org")
+    r = requests.get("https://www.kernel.org")
 
-    html_string = r.data.decode("UTF-8")
+    html_string = r.content.decode("UTF-8")
     parser = etree.HTMLParser()
     root = etree.parse(StringIO(html_string), parser)
 
@@ -99,9 +106,8 @@ def get_urls(version):
 
     urllist = list()
 
-    http = urllib3.PoolManager()
-    r = http.request("GET", mainline_url)
-    html_string = r.data.decode("UTF-8")
+    r = requests.get(mainline_url)
+    html_string = r.content.decode("UTF-8")
     parser = etree.HTMLParser()
     root = etree.parse(StringIO(html_string), parser)
 
@@ -122,7 +128,7 @@ def download_kernel(urlset):
 
 
 if __name__ == "__main__":
-    import urllib3
+    import requests
     from lxml import etree
     from io import StringIO
 
