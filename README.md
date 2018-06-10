@@ -4,9 +4,9 @@ mainline kernel PPA. The script downloads the suitable kernel for the system. If
 "--cpu" and "--type" can be used.
 
 # Requirements
-The script needs two additional python modules. The modules can be installed with the following command:
+The script needs one additional python module. This module can be installed with the following command:
 
-```sudo apt install python3-lxml python3-urllib3```
+```sudo apt install python3-lxml```
 
 # Usage
 
