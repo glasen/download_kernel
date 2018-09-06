@@ -6,10 +6,9 @@ mainline kernel PPA. The script downloads the suitable kernel for the system. If
 # Requirements
 The script needs one additional python module. This module can be installed with the following command:
 
-```sudo apt install python3-lxml```
+`sudo apt install python3-lxml`
 
 # Usage
-
 ```
 usage: download_kernel.py [-h] [--version VERSION] [--list_versions]
                           [--type {generic,lowlatency,lpae,snapdragon}]
