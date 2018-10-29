@@ -18,10 +18,10 @@ Download kernel from mainline PPA.
 
 optional arguments:
   -h, --help            show this help message and exit
-  --version VERSION     Kernel version
-  --list_versions       List available versions
-  --type {generic,lowlatency,lpae,snapdragon}
+  --version VERSION, -v VERSION
+                        Kernel version
+  --list_versions, -l   List available versions
+  --type {generic,lowlatency,lpae,snapdragon}, -t {generic,lowlatency,lpae,snapdragon}
                         Kernel type
-  --cpu {amd64,i386,armhf,arm64,ppc64el,s390x}
-                        CPU type
+  --cpu {amd64,i386,armhf,arm64,ppc64el,s390x}, -c {amd64,i386,armhf,arm64,ppc64el,s390x}
 ```
