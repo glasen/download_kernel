@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 def main():
     parser = argparse.ArgumentParser(description="Download kernel from mainline PPA.")
-    parser.add_argument("--version", help="Kernel version")
-    parser.add_argument("--list_versions", help="List available versions", action='store_true')
-    parser.add_argument("--type", help="Kernel type", default="generic", choices=["generic", "lowlatency", "lpae","snapdragon"])
-    parser.add_argument("--cpu", help="CPU type", choices=["amd64", "i386","armhf","arm64","ppc64el","s390x"])
+    parser.add_argument("--version","-v", help="Kernel version")
+    parser.add_argument("--list_versions","-l", help="List available versions", action='store_true')
+    parser.add_argument("--type","-t", help="Kernel type", default="generic", choices=["generic", "lowlatency", "lpae","snapdragon"])
+    parser.add_argument("--cpu","-c", help="CPU type", choices=["amd64", "i386","armhf","arm64","ppc64el","s390x"])
 
     args = parser.parse_args()
 
