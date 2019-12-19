@@ -1,130 +1,133 @@
 #!/usr/bin/env python3
 def main():
     parser = argparse.ArgumentParser(description="Download kernel from mainline PPA.")
-    parser.add_argument("--version","-v", help="Kernel version")
-    parser.add_argument("--list_versions","-l", help="List available versions", action='store_true')
-    parser.add_argument("--type","-t", help="Kernel type", default="generic", choices=["generic", "lowlatency", "lpae","snapdragon"])
-    parser.add_argument("--cpu","-c", help="CPU type", choices=["amd64", "i386","armhf","arm64","ppc64el","s390x"])
+    parser.add_argument("--version", "-v", help="Kernel version")
+    parser.add_argument("--list_versions", "-l", help="List available versions", action='store_true')
+    parser.add_argument("--type", "-t", help="Kernel type", default="generic",
+                        choices=["generic", "lowlatency", "lpae"])
+    parser.add_argument("--cpu", "-c", help="CPU type", choices=["amd64", "i386", "armhf", "arm64", "ppc64el", "s390x"])
 
     args = parser.parse_args()
 
+    cpu = args.cpu
+    kernel_type = args.type
     version = args.version
     list_versions = args.list_versions
-    type = args.type
-    cpu = args.cpu
 
-
-    if cpu == None:
-        args = ["dpkg","--print-architecture"]
-        cpu = sp.check_output(args).decode("utf-8").strip()
+    dk = DownloadKernel(cpu, kernel_type, version)
 
     if list_versions:
-        available_versions()
-        exit(1)
-
-    if version == None:
-        version = get_latest_stable_version()
-
-    if type == "lowlatency" and cpu in ["armhf","arm64","ppc64el","s390x"]:
-        print("There is no lowlatency kernel for cpu architecture \"%s\"" % (cpu))
-        exit(1)
-    elif type == "lpae" and cpu != "armhf":
-        print("There is no lpae kernel for cpu architecture \"%s\"" % (cpu))
-        exit(1)
-    elif type == "snapdragon" and cpu != "arm64":
-        print("There is no snapdragon kernel for cpu architecture \"%s\"" % (cpu))
-        exit(1)
-
-    urllist = get_urls(version)
-
-    filtered_set = filter_urls(urllist, type, cpu)
-
-    if len(filtered_set) != 0 and len(filtered_set) > 2:
-       download_kernel(filtered_set)
+        dk.list_available_versions()
     else:
-       print("Something went wrong. Please check Mainline-PPA if all deb-files are available for download!")
+        dk.download_kernel()
 
 
-def filter_urls(urllist, type, cpu):
-    pattern = re.compile(".*"+type+".*"+cpu+".deb")
+class DownloadKernel:
+    def __init__(self, cpu, kernel_type, version):
+        self._kernel_url = "https://www.kernel.org"
+        self._mainline_url = "http://kernel.ubuntu.com/~kernel-ppa/mainline/"
 
-    filtered_set = set()
+        self._type_combinations = {"generic": ["amd64", "i386", "armhf", "arm64", "ppc64el", "s390x"],
+                                   "lowlatency": ["amd64", "i386"],
+                                   "lpae": ["armhf"]}
 
-    for url in urllist:
-        if "_all.deb" in url:
-            filtered_set.add(url)
+        self._kernel_tree = self._get_html_tree(self._kernel_url)
 
-        if pattern.match(url):
-            filtered_set.add(url)
-
-    return filtered_set
-
-
-def available_versions():
-    print("Available kernel versions on \"kernel.ubuntu.com\":\n")
-
-    r = requests.get("https://www.kernel.org")
-    html_string = r.content.decode("UTF-8")
-    parser = etree.HTMLParser()
-    root = etree.parse(StringIO(html_string), parser)
-
-    version_path = root.xpath("/html/body/aside/article/table[3]//tr")
-
-    for element in version_path:
-        if len(element[1][0]):
-             eol_status = "EOL"
+        if cpu is None:
+            args = ["dpkg", "--print-architecture"]
+            self._cpu = sp.check_output(args).decode("utf-8").strip()
         else:
-             eol_status = ""
+            self._cpu = cpu
 
-        type = element[0].text
-        version = element[1][0].text
-        if check_availability(version):
-            print(type, version , eol_status)
+        if version is None:
+            self._version = self._get_latest_stable_version()
+        else:
+            self._version = version
 
-def check_availability(version):
-    mainline_url = "http://kernel.ubuntu.com/~kernel-ppa/mainline/v"+version
-    r = requests.get(mainline_url)
+        self._kernel_type = kernel_type
 
-    if r.status_code == 200:
-        return True
-    else:
-        return False
+        if self._cpu not in self._type_combinations[self._kernel_type]:
+            print("There is no \"%s\" kernel for cpu architecture \"%s\"" % (self._kernel_type, self._cpu))
+            exit(1)
 
+    def list_available_versions(self):
+        print("Available kernel versions on \"%s\":\n" % self._kernel_url)
 
-def get_latest_stable_version():
-    r = requests.get("https://www.kernel.org")
+        version_path = self._kernel_tree.xpath("/html/body/aside/article/table[3]//tr")
+        mainline_versions = self._check_availability()
 
-    html_string = r.content.decode("UTF-8")
-    parser = etree.HTMLParser()
-    root = etree.parse(StringIO(html_string), parser)
+        for element in version_path:
+            if len(element[1][0]):
+                eol_status = "EOL"
+            else:
+                eol_status = ""
 
-    return root.find('.//*[@id="latest_link"]')[0].text
+            support_type = element[0].text
+            version = element[1][0].text
 
+            if version in mainline_versions:
+                print(support_type, version, eol_status)
 
-def get_urls(version):
-    mainline_url = "http://kernel.ubuntu.com/~kernel-ppa/mainline/v" + version
+    def download_kernel(self):
+        url_list = self._get_urls()
+        url_set = self._filter_urls(url_list)
 
-    urllist = list()
+        for url in url_set:
+            args = ["wget", "-c", "-q", "--show-progress", "--progress=bar:noscroll", url]
+            sp.call(args)
 
-    r = requests.get(mainline_url)
-    html_string = r.content.decode("UTF-8")
-    parser = etree.HTMLParser()
-    root = etree.parse(StringIO(html_string), parser)
+    def _check_availability(self):
+        available_versions = list()
+        mainline_tree = self._get_html_tree(self._mainline_url)
 
-    if len(root.findall(".//body//a")) != 0:
-        for child in root.findall(".//body//a"):
-            filename = child.text
-            pattern = re.compile("^linux.*.deb")
-            if pattern.match(filename):
-                urllist.append(mainline_url + "/" + filename)
+        version_path = mainline_tree.xpath("/html/body/table//tr/td/a")
+        for element in version_path:
+            version = element.text
+            if version.startswith("v"):
+                available_versions.append(version[1:-1])
 
-    return urllist
+        return available_versions
 
+    def _get_latest_stable_version(self):
+        return self._kernel_tree.find('.//*[@id="latest_link"]')[0].text
 
-def download_kernel(urlset):
-    for url in urlset:
-        args = ["wget","-c","-q","--show-progress","--progress=bar:noscroll",url]
-        sp.call(args)
+    def _get_urls(self):
+        url_list = list()
+
+        file_url = self._mainline_url + "v" + self._version
+        root = self._get_html_tree(file_url)
+
+        if len(root.findall(".//body//a")) != 0:
+            for child in root.findall(".//body//a"):
+                filename = child.text
+                pattern = re.compile("^linux.*.deb")
+                if pattern.match(filename):
+                    url_list.append(file_url + "/" + filename)
+
+        return url_list
+
+    def _filter_urls(self, urllist):
+        pattern = re.compile(".*" + self._kernel_type + ".*" + self._cpu + ".deb")
+
+        filtered_set = set()
+
+        for url in urllist:
+            if "_all.deb" in url:
+                filtered_set.add(url)
+
+            if pattern.match(url):
+                filtered_set.add(url)
+
+        return filtered_set
+
+    @staticmethod
+    def _get_html_tree(url):
+        r = requests.get(url)
+        html_string = r.content.decode("UTF-8")
+        r.close()
+
+        parser = etree.HTMLParser()
+        return etree.parse(StringIO(html_string), parser)
 
 
 if __name__ == "__main__":
@@ -132,7 +135,8 @@ if __name__ == "__main__":
     from lxml import etree
     from io import StringIO
 
-    import argparse, re
+    import argparse
+    import re
     import subprocess as sp
 
     main()
