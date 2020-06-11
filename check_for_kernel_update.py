@@ -22,20 +22,16 @@ class CheckMainlineKernelUpdate:
     def _generate_new_version_string(self):
         version_pattern = re.compile(r"(\d{1,2}).(\d{1,2}).(\d{1,2})-\d{6}(rc\d{1,2})?")
         rc_pattern = re.compile(r"rc(\d{1,2})")
-        m = version_pattern.match(self._version_string)
-        if m is not None:
-            main_version, minor_version, patch_level_string, rc_string = m.groups()
-            patch_level = int(patch_level_string)
+        main_version, minor_version, patch_level_string, rc_string = version_pattern.findall(self._version_string)[0]
+        patch_level = int(patch_level_string)
 
-            if rc_string is not None:
-                rc_version = int(rc_pattern.match(rc_string).group(1))
-                rc_version += 1
-                return "{:}.{:}.{:}rc{:}".format(main_version, minor_version, patch_level_string, rc_version)
-            else:
-                patch_level += 1
-                return "{:}.{:}.{:}".format(main_version, minor_version, patch_level)
+        if rc_string != "":
+            rc_version = int(rc_pattern.findall(rc_string)[0])
+            rc_version += 1
+            return "{:}.{:}.{:}rc{:}".format(main_version, minor_version, patch_level_string, rc_version)
         else:
-            return None
+            patch_level += 1
+            return "{:}.{:}.{:}".format(main_version, minor_version, patch_level)
 
     def _check_availability(self):
         mainline_url = "http://kernel.ubuntu.com/~kernel-ppa/mainline/v" + self._new_version

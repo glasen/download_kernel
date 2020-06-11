@@ -100,7 +100,7 @@ class DownloadKernel:
         if len(root.findall(".//body//a")) != 0:
             for child in root.findall(".//body//a"):
                 filename = child.text
-                pattern = re.compile("^linux.*.deb")
+                pattern = re.compile("^("+self._cpu+"\/)?linux.*.deb")
                 if pattern.match(filename):
                     url_list.append(file_url + "/" + filename)
 
