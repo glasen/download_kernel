@@ -19,13 +19,19 @@ def main():
     if list_versions:
         dk.list_available_versions()
     else:
-        dk.download_kernel()
+        status = dk.check_status()
+        if status == 0:
+            dk.download_kernel()
+        if status == 2:
+            print("This kernel-version is not available because of some compile error!")
+        else:
+            print("This kernel-version is not available because of an unknown reason!")
 
 
 class DownloadKernel:
     def __init__(self, cpu, kernel_type, version):
         self._kernel_url = "https://www.kernel.org"
-        self._mainline_url = "http://kernel.ubuntu.com/~kernel-ppa/mainline/"
+        self._mainline_url = "https://kernel.ubuntu.com/~kernel-ppa/mainline"
 
         self._type_combinations = {"generic": ["amd64", "i386", "armhf", "arm64", "ppc64el", "s390x"],
                                    "lowlatency": ["amd64", "i386"],
@@ -50,6 +56,11 @@ class DownloadKernel:
             print("There is no \"%s\" kernel for cpu architecture \"%s\"" % (self._kernel_type, self._cpu))
             exit(1)
 
+    def check_status(self):
+        status_url = "/".join([self._mainline_url, "v" + self._version, self._cpu, "status"])
+        r = requests.get(status_url)
+        return int(r.content.strip())
+
     def list_available_versions(self):
         print("Available kernel versions on \"%s\":\n" % self._kernel_url)
 
@@ -72,9 +83,16 @@ class DownloadKernel:
         url_list = self._get_urls()
         url_set = self._filter_urls(url_list)
 
-        for url in url_set:
-            args = ["wget", "-c", "-q", "--show-progress", "--progress=bar:noscroll", url]
-            sp.call(args)
+        number_of_packages = len(url_set)
+
+        if number_of_packages == 4:
+            for url in url_set:
+                print(f"Downloading file \"{url}\" ...")
+                args = ["curl", "-O", url]
+                sp.call(args)
+                print()
+        else:
+            print(f"There are only {number_of_packages} packages available. Please try again later!")
 
     def _check_availability(self):
         available_versions = list()
@@ -94,7 +112,7 @@ class DownloadKernel:
     def _get_urls(self):
         url_list = list()
 
-        file_url = self._mainline_url + "v" + self._version
+        file_url = "/".join([self._mainline_url, "v" + self._version])
         root = self._get_html_tree(file_url)
 
         if len(root.findall(".//body//a")) != 0:
@@ -102,7 +120,7 @@ class DownloadKernel:
                 filename = child.text
                 pattern = re.compile("^("+self._cpu+"\/)?linux.*.deb")
                 if pattern.match(filename):
-                    url_list.append(file_url + "/" + filename)
+                    url_list.append("/".join([file_url, filename]))
 
         return url_list
 
