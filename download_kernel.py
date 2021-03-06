@@ -22,7 +22,7 @@ def main():
         status = dk.check_status()
         if status == 0:
             dk.download_kernel()
-        if status == 2:
+        elif status == 2:
             print("This kernel-version is not available because of some compile error!")
         else:
             print("This kernel-version is not available because of an unknown reason!")
