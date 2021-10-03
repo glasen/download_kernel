@@ -22,7 +22,7 @@ def main():
         status = dk.check_status()
         if status == 0:
             dk.download_kernel()
-        if status == 2:
+        elif status == 2:
             print("This kernel-version is not available because of some compile error!")
         else:
             print("This kernel-version is not available because of an unknown reason!")
@@ -118,7 +118,7 @@ class DownloadKernel:
         if len(root.findall(".//body//a")) != 0:
             for child in root.findall(".//body//a"):
                 filename = child.text
-                pattern = re.compile("^("+self._cpu+"\/)?linux.*.deb")
+                pattern = re.compile("^("+self._cpu+"/)?linux.*.deb")
                 if pattern.match(filename):
                     url_list.append("/".join([file_url, filename]))
 

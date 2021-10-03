@@ -12,6 +12,8 @@ def main():
 
 class CheckMainlineKernelUpdate:
     def __init__(self):
+        self._kernel_url = "https://www.kernel.org"
+        self._mainline_url = "https://kernel.ubuntu.com/~kernel-ppa/mainline"
         self._version_string = sp.check_output(["uname", "-r"]).decode("UTF-8").rstrip()
         self._new_version = self._generate_new_version_string()
 
@@ -28,14 +30,14 @@ class CheckMainlineKernelUpdate:
         if rc_string != "":
             rc_version = int(rc_pattern.findall(rc_string)[0])
             rc_version += 1
-            return "{:}.{:}.{:}rc{:}".format(main_version, minor_version, patch_level_string, rc_version)
+            return f"{main_version}.{minor_version}.{patch_level_string}rc{rc_version}"
         else:
             patch_level += 1
-            return "{:}.{:}.{:}".format(main_version, minor_version, patch_level)
+            return f"{main_version}.{minor_version}.{patch_level}"
 
     def _check_availability(self):
-        mainline_url = "http://kernel.ubuntu.com/~kernel-ppa/mainline/v" + self._new_version
-        r = requests.get(mainline_url)
+        complete_url = "/".join([self._mainline_url, "v" + self._new_version])
+        r = requests.get(complete_url)
         r.close()
 
         if r.status_code == 200:
@@ -44,7 +46,7 @@ class CheckMainlineKernelUpdate:
             return False
 
     def _get_latest_version(self):
-        r = requests.get("https://www.kernel.org")
+        r = requests.get(self._kernel_url)
         html_string = r.content.decode("UTF-8")
         r.close()
         parser = etree.HTMLParser()
