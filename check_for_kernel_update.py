@@ -50,9 +50,9 @@ class CheckMainlineKernelUpdate:
         html_string = r.content.decode("UTF-8")
         r.close()
         parser = etree.HTMLParser()
-        root = etree.parse(StringIO(html_string), parser)
+        latest_version = etree.parse(StringIO(html_string), parser).find('.//*[@id="latest_link"]')[0].text
 
-        return root.find('.//*[@id="latest_link"]')[0].text
+        return latest_version
 
 
 if __name__ == "__main__":

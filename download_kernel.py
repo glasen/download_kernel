@@ -59,7 +59,13 @@ class DownloadKernel:
     def check_status(self):
         status_url = "/".join([self._mainline_url, "v" + self._version, self._cpu, "status"])
         r = requests.get(status_url)
-        return int(r.content.strip())
+
+        try:
+            status = int(r.content.strip())
+        except ValueError:
+            status = 1
+
+        return status
 
     def list_available_versions(self):
         print("Available kernel versions on \"%s\":\n" % self._kernel_url)
