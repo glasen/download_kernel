@@ -6,6 +6,7 @@ def main():
     parser.add_argument("--type", "-t", help="Kernel type", default="generic",
                         choices=["generic", "lowlatency", "lpae"])
     parser.add_argument("--cpu", "-c", help="CPU type", choices=["amd64", "i386", "armhf", "arm64", "ppc64el", "s390x"])
+    parser.add_argument("--without_headers", "-w", help="Don't download header-packages", action='store_true')
 
     args = parser.parse_args()
 
@@ -13,8 +14,9 @@ def main():
     kernel_type = args.type
     version = args.version
     list_versions = args.list_versions
+    without_headers = args.without_headers
 
-    dk = DownloadKernel(cpu, kernel_type, version)
+    dk = DownloadKernel(cpu, kernel_type, version, without_headers=without_headers)
 
     if list_versions:
         dk.list_available_versions()
@@ -29,14 +31,13 @@ def main():
 
 
 class DownloadKernel:
-    def __init__(self, cpu, kernel_type, version):
+    def __init__(self, cpu, kernel_type, version, without_headers=False):
         self._kernel_url = "https://www.kernel.org"
         self._mainline_url = "https://kernel.ubuntu.com/~kernel-ppa/mainline"
-
         self._type_combinations = {"generic": ["amd64", "i386", "armhf", "arm64", "ppc64el", "s390x"],
                                    "lowlatency": ["amd64", "i386"],
                                    "lpae": ["armhf"]}
-
+        self._without_headers = without_headers
         self._kernel_tree = self._get_html_tree(self._kernel_url)
 
         if cpu is None:
@@ -89,10 +90,20 @@ class DownloadKernel:
         url_list = self._get_urls()
         url_set = self._filter_urls(url_list)
 
+        needed_no_of_packages = 4
+
+        for url in url_set:
+            if "iwlwifi" in url:
+                needed_no_of_packages = 5
+                break
+
         number_of_packages = len(url_set)
 
-        if number_of_packages == 4:
+        if number_of_packages == needed_no_of_packages:
             for url in url_set:
+                if self._without_headers and "headers" in url:
+                    continue
+
                 print(f"Downloading file \"{url}\" ...")
                 args = ["curl", "-O", url]
                 sp.call(args)
@@ -124,7 +135,7 @@ class DownloadKernel:
         if len(root.findall(".//body//a")) != 0:
             for child in root.findall(".//body//a"):
                 filename = child.text
-                pattern = re.compile("^("+self._cpu+"/)?linux.*.deb")
+                pattern = re.compile("^(" + self._cpu + "/)?linux.*.deb")
                 if pattern.match(filename):
                     url_list.append("/".join([file_url, filename]))
 
