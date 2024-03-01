@@ -33,7 +33,7 @@ def main():
 class DownloadKernel:
     def __init__(self, cpu, kernel_type, version, without_headers=False):
         self._kernel_url = "https://www.kernel.org"
-        self._mainline_url = "https://kernel.ubuntu.com/~kernel-ppa/mainline"
+        self._mainline_url = "https://kernel.ubuntu.com/mainline/"
         self._type_combinations = {"generic": ["amd64", "i386", "armhf", "arm64", "ppc64el", "s390x"],
                                    "lowlatency": ["amd64", "i386"],
                                    "lpae": ["armhf"]}
@@ -115,7 +115,7 @@ class DownloadKernel:
         available_versions = list()
         mainline_tree = self._get_html_tree(self._mainline_url)
 
-        version_path = mainline_tree.xpath("/html/body/table//tr/td/a")
+        version_path = mainline_tree.xpath("/html/body/table/tr/td/a")
         for element in version_path:
             version = element.text
             if version.startswith("v"):
